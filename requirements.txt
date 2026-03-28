@@ -1,0 +1,10 @@
+sqlalchemy
+
+requests
+polars
+pydantic
+sqlalchemy
+psycopg2-binary
+
+adbc-driver-postgresql
+adbc-driver-manager
