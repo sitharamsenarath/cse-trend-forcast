@@ -3,7 +3,7 @@ name: Daily Stock Ingestion
 on:
   schedule:
     - cron: '30 10 * * 1-5' # Every weekday at 10:30 AM
-    workflow-dispatch: # Allow manual trigger
+  workflow_dispatch: # Allow manual triggering
 
 jobs:
   ingest:
