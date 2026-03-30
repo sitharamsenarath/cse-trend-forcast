@@ -4,7 +4,7 @@ import requests
 import polars as pl
 from models import StockPriceFact
 from sqlalchemy import text
-from app.utils.database_utils import get_db_engine
+from src.utils.database_utils import get_db_engine
 
 
 CLOUD_DATABASE_URL = os.getenv("CLOUD_DATABASE_URL")
