@@ -25,4 +25,4 @@ jobs:
       - name: Run ingestion script
         env:
           CLOUD_DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: python -m src/ingestion/extractor.py
+        run: python -m src.ingestion.extractor
