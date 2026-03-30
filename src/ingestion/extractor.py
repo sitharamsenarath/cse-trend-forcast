@@ -2,7 +2,7 @@ import os
 
 import requests
 import polars as pl
-from models import StockPriceFact
+from src.ingestion.models import StockPriceFact
 from sqlalchemy import text
 from src.utils.database_utils import get_db_engine
 
