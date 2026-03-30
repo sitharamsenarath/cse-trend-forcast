@@ -3,24 +3,11 @@ import os
 import requests
 import polars as pl
 from models import StockPriceFact
-from sqlalchemy import create_engine, text
-import time
+from sqlalchemy import text
+from utils.database_utils import get_db_engine
 
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-def get_db_engine(retries=5):
-    for i in range(retries):
-        try:
-            engine = create_engine(DATABASE_URL)
-            # Try to actually execute a tiny query to test the connection
-            with engine.connect() as conn:
-                return engine
-        except Exception as e:
-            print(f"Database not ready (Attempt {i+1}/{retries}). Error: {e}")
-            time.sleep(3)
-    raise Exception(f"Failed to connect to DB at {DATABASE_URL}")
-
+CLOUD_DATABASE_URL = os.getenv("CLOUD_DATABASE_URL")
 
 def fetch_and_validate():
     url = "https://www.cse.lk/api/tradeSummary"
@@ -58,6 +45,9 @@ def run_pipeline():
     df = pl.DataFrame(data)
     print(f"Polars DataFrame created with {df.height} rows.")
 
+    unique_dates = df.select(pl.col("extracted_at").dt.date().unique()).to_series().to_list()
+    date_strings = [d.strftime('%Y-%m-%d') for d in unique_dates]
+
     df = df.with_columns([
         pl.col("price").cast(pl.Float64),
         pl.col("high").cast(pl.Float64),
@@ -65,9 +55,16 @@ def run_pipeline():
         pl.col("change_percentage").cast(pl.Float64),
     ])
 
-    engine = get_db_engine()
+    engine = get_db_engine("CLOUD_DATABASE_URL")
 
     with engine.begin() as connection:
+        if date_strings:
+            connection.execute(
+                text("DELETE FROM fact_stock_prices WHERE extracted_at::date IN :dates"),
+                {"dates": tuple(date_strings)}
+            )
+            print(f"Cleaned up existing records for: {date_strings}")
+
         for symbol, name in dimensions.items():
             connection.execute(text("""
                                     INSERT INTO dim_stocks (symbol, name) 
@@ -77,9 +74,11 @@ def run_pipeline():
                                 """), {"s": symbol, "n": name}
                             )
 
+    
+
     df.write_database(
         table_name="fact_stock_prices", 
-        connection=DATABASE_URL,
+        connection=CLOUD_DATABASE_URL,
         engine="adbc", 
         if_table_exists="append"
     )

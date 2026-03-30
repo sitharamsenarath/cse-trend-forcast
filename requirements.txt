@@ -8,3 +8,7 @@ psycopg2-binary
 
 adbc-driver-postgresql
 adbc-driver-manager
+
+dotenv
+connectorx
+pyarrow

@@ -32,9 +32,23 @@ services:
     depends_on:
       - db
     environment:
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=${LOCAL_DATABASE_URL}
     volumes:
       - .:/app
+    command: python -m src.ingestion.extractor
+
+
+  sync:
+    build: .
+    container_name: cse_sync
+    depends_on:
+      - db
+    environment:
+      - LOCAL_DATABASE_URL=${LOCAL_DATABASE_URL}
+      - CLOUD_DATABASE_URL=${CLOUD_DATABASE_URL}
+    volumes:
+      - .:/app
+    command: python -m src.sync.sync_cloud_to_local
 
 volumes:
   postgres_data:
