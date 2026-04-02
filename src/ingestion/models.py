@@ -53,10 +53,10 @@ class StockPriceFact(CSEBaseModel):
 
 class SectorFact(CSEBaseModel):
     index_name: str = Field(..., alias="name")
-    index_code: Optional[str] = Field(..., alias="indexCode")
+    index_code: str = Field(..., alias="indexCode")
     index_value: float = Field(..., alias="indexValue")
     sector_turnover: float = Field(0.0, alias="sectorTurnoverToday")
-    sector_volume: Optional[int] = Field(0, alias="sectorVolumeToday")
+    sector_volume: int = Field(0, alias="sectorVolumeToday")
     change_percentage: float = Field(0.0, alias="percentage")
     extracted_at: datetime = Field(default_factory=datetime.now)
 

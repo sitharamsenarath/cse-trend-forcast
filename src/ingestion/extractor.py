@@ -71,7 +71,7 @@ def run_pipeline(force_slow_sync: bool = False):
                 INSERT INTO dim_stocks (symbol, name)
                 VALUES (:s, :n)
                 ON CONFLICT (symbol) DO UPDATE SET name = EXCLUDED.name;
-            """), {"s":s['symbol'], "n":s.get('name', 'Unknown')})
+            """), {"s":s['symbol'], "n":s['name']})
 
         today = datetime.now().strftime('%Y-%m-%d')
         conn.execute(text("DELETE FROM fact_stock_prices WHERE extracted_at::date = :d"), {"d": today})
@@ -104,10 +104,10 @@ def run_pipeline(force_slow_sync: bool = False):
         )
         print(f"Inserted {len(sectors)} Sector Index rows.")
 
-    is_sunday = datetime.now().weekday() == 4
-    if force_slow_sync or is_sunday:
-        symbols = [s['symbol'] for s in stocks]
-        enrich_slow_sync_metadata(engine, symbols)
+    # is_sunday = datetime.now().weekday() == 4
+    # if force_slow_sync or is_sunday:
+    symbols = [s['symbol'] for s in stocks]
+    enrich_slow_sync_metadata(engine, symbols)
 
 
 if __name__ == "__main__":
