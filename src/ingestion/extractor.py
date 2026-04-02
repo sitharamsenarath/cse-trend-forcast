@@ -1,88 +1,102 @@
+from datetime import datetime
 import os
 
 import requests
 import polars as pl
-from src.ingestion.models import StockPriceFact
+from src.ingestion.models import SectorFact, StockPriceFact
 from sqlalchemy import text
 from src.utils.database_utils import get_db_engine
 
 
 CLOUD_DATABASE_URL = os.getenv("CLOUD_DATABASE_URL")
+BASE_URL = "https://www.cse.lk/api"
 
-def fetch_and_validate():
-    url = "https://www.cse.lk/api/tradeSummary"
+def fetch_fast_sync_data():
+    print(f"Fetching Daily Market Data: {datetime.now().date()}")
 
-    print(f"Fetching data from url: {url}")
-    response = requests.post(url)
-    response.raise_for_status()  # Raise an error for bad status codes
+    resp_stocks = requests.post(f"{BASE_URL}/tradeSummary")
+    resp_stocks.raise_for_status()
+    raw_stocks = resp_stocks.json().get("reqTradeSummery", [])
 
-    raw_data = response.json().get("reqTradeSummery", [])
+    resp_sectors = requests.post(f"{BASE_URL}/allSectors")
+    resp_sectors.raise_for_status()
+    raw_sectors = resp_sectors.json()
 
-    validated_data = []
-    dim_data = {}
+    valid_stocks = [StockPriceFact(**st).model_dump() for st in raw_stocks]
+    valid_sectors = [SectorFact(**sec).model_dump() for sec in raw_sectors]
 
-    for item in raw_data:
+    return valid_stocks, valid_sectors
+
+
+def enrich_slow_sync_metadata(engine, symbols):
+    print(f"Running Slow Sync (Metadata) for {len(symbols)} symbols...")
+
+    for symbol in symbols:
         try:
-            obj = StockPriceFact(**item)
-            validated_data.append(obj.model_dump())
+            resp = requests.post(f"{BASE_URL}/companyInfoSummery?symbol={symbol}")
+            if resp.status_code == 200:
+                data = resp.json()
+                info = data.get("reqSymbolInfo", {})
+                beta = data.get("reqSymbolBetaInfo", {})
 
-            symbol = item.get("symbol", "Unknown")
-            if symbol and symbol not in dim_data:
-                dim_data[symbol] = item.get("name", "Unknown")
+                with engine.begin() as conn:
+                    conn.execute(text("""
+                        UPDATE dim_stocks SET 
+                            isin = :isin, 
+                            beta_value = :beta,
+                            market_cap_total = :mcap,
+                            issued_quantity = :qty,
+                            last_updated = CURRENT_TIMESTAMP
+                        WHERE symbol = :s
+                    """), {
+                        "isin": info.get("isin"),
+                        "beta": beta.get("triASIBetaValue"),
+                        "mcap": info.get("marketCap"),
+                        "qty": info.get("quantityIssued"),
+                        "s": symbol
+                    })
         except Exception as e:
-            print(f"Validation failed for a item {item.get('symbol')}: {e}")
-            continue
-
-    return validated_data, dim_data
+            print(f"Metadata sync failed for {symbol}: {e}")
 
 
-def run_pipeline():
-    data, dimensions = fetch_and_validate()
-    if not data:
-        print("No data fetched from API.")
-        return
-    
-    df = pl.DataFrame(data)
-    print(f"Polars DataFrame created with {df.height} rows.")
-
-    unique_dates = df.select(pl.col("extracted_at").dt.date().unique()).to_series().to_list()
-    date_strings = [d.strftime('%Y-%m-%d') for d in unique_dates]
-
-    df = df.with_columns([
-        pl.col("price").cast(pl.Float64),
-        pl.col("high").cast(pl.Float64),
-        pl.col("low").cast(pl.Float64),
-        pl.col("change_percentage").cast(pl.Float64),
-    ])
-
+def run_pipeline(force_slow_sync: bool = False):
+    stocks, sectors = fetch_fast_sync_data()
     engine = get_db_engine("CLOUD_DATABASE_URL")
 
-    with engine.begin() as connection:
-        if date_strings:
-            connection.execute(
-                text("DELETE FROM fact_stock_prices WHERE extracted_at::date IN :dates"),
-                {"dates": tuple(date_strings)}
-            )
-            print(f"Cleaned up existing records for: {date_strings}")
+    with engine.begin() as conn:
+        for s in stocks:
+            conn.execute(text("""
+                INSERT INTO dim_stocks (symbol, name)
+                VALUES (:s, :n)
+                ON CONFLICT (symbol) DO UPDATE SET name = EXCLUDED.name;
+            """), {"s":s['symbol'], "n":s.get('name', 'Unknown')})
 
-        for symbol, name in dimensions.items():
-            connection.execute(text("""
-                                    INSERT INTO dim_stocks (symbol, name) 
-                                    VALUES (:s, :n) 
-                                    ON CONFLICT (symbol) 
-                                    DO UPDATE SET name = EXCLUDED.name, last_updated = CURRENT_TIMESTAMP;
-                                """), {"s": symbol, "n": name}
-                            )
-
+        today = datetime.now().strftime('%Y-%m-%d')
+        conn.execute(text("DELETE FROM fact_stock_prices WHERE extracted_at::date = :d"), {"d": today})
+        conn.execute(text("DELETE FROM fact_sector_indices WHERE extracted_at::date = :d"), {"d": today})
     
+    if stocks:
+        pl.DataFrame(stocks).write_database(
+            table_name="fact_stock_prices",
+            connection=CLOUD_DATABASE_URL,
+            engine="adbc",
+            if_table_exists="append"
+        )
+        print(f"Inserted {len(stocks)} Stock Price rows.")
 
-    df.write_database(
-        table_name="fact_stock_prices", 
-        connection=CLOUD_DATABASE_URL,
-        engine="adbc", 
-        if_table_exists="append"
-    )
-    print("Data inserted into the database successfully.")
+    if sectors:
+        pl.DataFrame(sectors).write_database(
+            table_name="fact_sector_indices",
+            connection=CLOUD_DATABASE_URL,
+            engine="adbc",
+            if_table_exists="append"
+        )
+        print(f"Inserted {len(sectors)} Sector Index rows.")
+
+    is_sunday = datetime.now().weekday() == 4
+    if force_slow_sync or is_sunday:
+        symbols = [s['symbol'] for s in stocks]
+        enrich_slow_sync_metadata(engine, symbols)
 
 
 if __name__ == "__main__":
