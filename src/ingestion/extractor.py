@@ -78,7 +78,16 @@ def run_pipeline(force_slow_sync: bool = False):
         conn.execute(text("DELETE FROM fact_sector_indices WHERE extracted_at::date = :d"), {"d": today})
     
     if stocks:
-        pl.DataFrame(stocks).write_database(
+        df_stocks = pl.DataFrame(stocks)
+        
+        df_stocks = df_stocks.with_columns([
+            pl.col("price").cast(pl.Float64),
+            pl.col("volume").cast(pl.Int64), 
+            pl.col("trade_count").cast(pl.Int32), 
+            pl.col("turnover").cast(pl.Float64)
+        ])
+
+        df_stocks.write_database(
             table_name="fact_stock_prices",
             connection=CLOUD_DATABASE_URL,
             engine="adbc",
