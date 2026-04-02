@@ -1,0 +1,14 @@
+
+target/
+dbt_packages/
+logs/
+
+profiles.yml
+
+seeds/
+snapshots/
+tests/
+macros/
+analyses/
+
+.user.yml

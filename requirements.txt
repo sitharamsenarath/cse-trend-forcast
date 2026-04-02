@@ -12,3 +12,6 @@ adbc-driver-manager
 dotenv
 connectorx
 pyarrow
+
+dbt-core
+dbt-postgres

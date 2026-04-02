@@ -26,16 +26,16 @@ services:
       - db
 
 
-  ingestor:
-    build: .
-    container_name: cse_ingestor
-    depends_on:
-      - db
-    environment:
-      - DATABASE_URL=${LOCAL_DATABASE_URL}
-    volumes:
-      - .:/app
-    command: python -m src.ingestion.extractor
+  # ingestor:
+  #   build: .
+  #   container_name: cse_ingestor
+  #   depends_on:
+  #     - db
+  #   environment:
+  #     - DATABASE_URL=${LOCAL_DATABASE_URL}
+  #   volumes:
+  #     - .:/app
+  #   command: python -m src.ingestion.extractor
 
 
   sync:
@@ -48,7 +48,8 @@ services:
       - CLOUD_DATABASE_URL=${CLOUD_DATABASE_URL}
     volumes:
       - .:/app
-    command: python -m src.sync.sync_cloud_to_local
+    # command: python -m src.sync.sync_cloud_to_local
+    command: bash run_pipeline.sh
 
 volumes:
   postgres_data:

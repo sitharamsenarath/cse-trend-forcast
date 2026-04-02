@@ -12,20 +12,17 @@ LOCAL_DATABASE_URL = os.getenv("LOCAL_DATABASE_URL")
 
 def sync_cloud_to_local():
     local_engine = get_db_engine("LOCAL_DATABASE_URL")
-
     sync_dim_stocks(local_engine)
 
     with local_engine.connect() as conn:
         result = conn.execute(text("SELECT MAX(extracted_at) FROM fact_stock_prices"))
-        # print(f"result : {result}")
         last_sync_date = result.scalar()
-        # print(f"last sync date 1 : {last_sync_date}")
 
     print(f"Last local record found: {last_sync_date}")
 
     query = "SELECT * FROM fact_stock_prices"
     if last_sync_date:
-        query += f" WHERE extracted_at > '{last_sync_date}'"
+        query += f" WHERE extracted_at >= '{last_sync_date}'"
 
     df_new_data = pl.read_database_uri(query, uri=CLOUD_DATABASE_URL)
 
@@ -34,7 +31,17 @@ def sync_cloud_to_local():
         return
     
     print(f"Found {df_new_data.height} new rows in Cloud. Syncing...")
+    
+    new_max_date = df_new_data["extracted_at"].max()
+    overlap_timestamps = df_new_data["extracted_at"].unique().to_list()
 
+    with local_engine.begin() as conn:
+        conn.execute(
+            text("DELETE FROM fact_stock_prices WHERE extracted_at IN :ts"),
+            {"ts": tuple(overlap_timestamps)}
+        )
+        print(f"Cleared {len(overlap_timestamps)} overlapping timestamps from local warehouse.")
+    
     df_new_data.write_database(
         table_name="fact_stock_prices",
         connection=LOCAL_DATABASE_URL,
@@ -43,20 +50,17 @@ def sync_cloud_to_local():
     )
     
     print("Sync complete..!")
-
-    
-
-    cleanup_cloud_storage(last_sync_date)
+    cleanup_cloud_storage(new_max_date)
 
 
-def cleanup_cloud_storage(last_sync_date):
+def cleanup_cloud_storage(date):
     cloud_engine = get_db_engine("CLOUD_DATABASE_URL")
 
     with cloud_engine.begin() as conn:
-        print(f"last sync date : {last_sync_date}")
+        print(f"last sync date : {date}")
         result = conn.execute(
             text("DELETE from fact_stock_prices WHERE extracted_at <= :sync_date"),
-            {"sync_date": last_sync_date}
+            {"sync_date": date}
         )
 
         print(f"Cloud Cleanup: Removed {result.rowcount} old rows from online database")

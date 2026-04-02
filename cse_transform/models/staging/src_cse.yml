@@ -1,0 +1,10 @@
+version: 2
+
+sources:
+  - name: cse_raw
+    description: "Raw data from the Sri Lanka Stock Exchange API"
+    database: cse_db
+    schema: public
+    tables:
+      - name: fact_stock_prices
+      - name: dim_stocks
