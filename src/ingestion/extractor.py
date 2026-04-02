@@ -22,6 +22,8 @@ def fetch_fast_sync_data():
     resp_sectors.raise_for_status()
     raw_sectors = resp_sectors.json()
 
+    print(raw_sectors)
+
     valid_stocks = [StockPriceFact(**st).model_dump() for st in raw_stocks]
     valid_sectors = [SectorFact(**sec).model_dump() for sec in raw_sectors]
 
