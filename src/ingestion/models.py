@@ -31,6 +31,7 @@ class StockDimension(CSEBaseModel):
     
 class StockPriceFact(CSEBaseModel):
     symbol: str
+    name: Optional[str] = None
     price: float = Field(..., gt=0) # Must be positive
     open_price: Optional[float] = Field(None, alias="open")
     high: float = Field(..., ge=0)

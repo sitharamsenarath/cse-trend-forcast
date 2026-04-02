@@ -71,7 +71,7 @@ def run_pipeline(force_slow_sync: bool = False):
                 INSERT INTO dim_stocks (symbol, name)
                 VALUES (:s, :n)
                 ON CONFLICT (symbol) DO UPDATE SET name = EXCLUDED.name;
-            """), {"s":s['symbol'], "n":s['name']})
+            """), {"s":s['symbol'], "n":s.get('name', 'Unknown')})
 
         today = datetime.now().strftime('%Y-%m-%d')
         conn.execute(text("DELETE FROM fact_stock_prices WHERE extracted_at::date = :d"), {"d": today})
