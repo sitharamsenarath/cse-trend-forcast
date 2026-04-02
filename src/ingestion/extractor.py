@@ -87,7 +87,9 @@ def run_pipeline(force_slow_sync: bool = False):
             pl.col("turnover").cast(pl.Float64)
         ])
 
-        df_stocks.write_database(
+        df_stocks_to_write = df_stocks.drop("name")
+
+        df_stocks_to_write.write_database(
             table_name="fact_stock_prices",
             connection=CLOUD_DATABASE_URL,
             engine="adbc",
