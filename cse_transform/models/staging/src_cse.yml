@@ -7,4 +7,8 @@ sources:
     schema: public
     tables:
       - name: fact_stock_prices
+        description: "Daily price and volume data for individual tickers"
       - name: dim_stocks
+        description: "Master list of stocks and company metadata"
+      - name: fact_sector_indices
+        description: "Daily performance data for market sectors"

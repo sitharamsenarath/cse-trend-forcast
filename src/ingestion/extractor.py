@@ -106,10 +106,10 @@ def run_pipeline(force_slow_sync: bool = False):
         )
         print(f"Inserted {len(sectors)} Sector Index rows.")
 
-    # is_sunday = datetime.now().weekday() == 4
-    # if force_slow_sync or is_sunday:
-    symbols = [s['symbol'] for s in stocks]
-    enrich_slow_sync_metadata(engine, symbols)
+    is_sunday = datetime.now().weekday() == 4
+    if force_slow_sync or is_sunday:
+        symbols = [s['symbol'] for s in stocks]
+        enrich_slow_sync_metadata(engine, symbols)
 
 
 if __name__ == "__main__":
