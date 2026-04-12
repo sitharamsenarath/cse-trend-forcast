@@ -26,6 +26,32 @@ services:
       - db
 
 
+  spark-master:
+    image: apache/spark:latest
+    container_name: cse_spark_master
+    user: root
+    command: >
+      bash -c "pip install numpy python-dotenv && 
+      /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master"
+    ports:
+      - "8080:8080"  # Spark Master Web UI
+      - "7077:7077"  # Spark Master Port
+    volumes:
+      - .:/app
+    working_dir: /app
+
+  spark-worker:
+    image: apache/spark:latest
+    container_name: cse_spark_worker
+    user: root
+    command: >
+      bash -c "pip install numpy python-dotenv && 
+      /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077"depends_on:
+      - spark-master
+    volumes:
+      - .:/app
+    working_dir: /app
+
   # ingestor:
   #   build: .
   #   container_name: cse_ingestor
