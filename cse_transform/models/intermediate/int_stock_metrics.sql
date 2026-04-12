@@ -41,7 +41,7 @@ calculations as (
 final_features as (
     select
         *,
-        -- 1. Added Alpha calculation here!
+        -- Alpha calculation
         (daily_change_pct - sector_daily_return_pct) as alpha_vs_sector,
         
         -- Gap Analysis

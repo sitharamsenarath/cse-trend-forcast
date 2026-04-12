@@ -31,7 +31,6 @@ def run_preprocessing():
 
     window_spec = Window.partitionBy("stock_symbol").orderBy("trade_date")
     df = df.withColumn("target", F.lead("daily_change_pct", 1).over(window_spec))
-    # df = df.dropna(subset=["target"])
 
     # feature_cols = ['sma_5', 'sma_20', 'volume_surge_ratio', 'alpha_vs_sector', 'rolling_volatility_20d']
     feature_cols = ['sma_5', 'sma_20', 'volume_surge_ratio', 'rolling_volatility_20d']

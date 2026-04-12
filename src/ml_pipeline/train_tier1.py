@@ -12,18 +12,14 @@ print("Loading pre-processed training and testing sets...")
 train_data = spark.read.parquet("data/processed/tier1_train.parquet")
 test_data = spark.read.parquet("data/processed/tier1_test.parquet")
 
-# # 3. Split: 80% for training, 20% for testing
-# train_data, test_data = df.randomSplit([0.8, 0.2], seed=42)
-
-# 4. Initialize the Model
-# maxIter=20 means the model will try to improve itself 20 times
+# 3. Initialize the Model
 gbt = GBTRegressor(featuresCol="features", labelCol="target", maxIter=20)
 
-# 5. Train (This is where the magic happens)
+# 5. Train
 print("Training Tier 1 Model...")
 model = gbt.fit(train_data)
 
-# 6. Evaluate: How close were our predictions?
+# 6. Evaluate
 predictions = model.transform(test_data)
 
 eval_predictions = predictions.filter(F.col("target").isNotNull())

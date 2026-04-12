@@ -17,9 +17,9 @@ select
     last_price,
     daily_change_pct,
     opening_gap_pct,
-    alpha_vs_sector, -- Is the stock beating its own industry?
+    alpha_vs_sector, -- Is the stock beating its own industry
 
-    -- 3. Momentum Features (using the new SMAs)
+    -- 3. Momentum Features
     sma_5,
     sma_20,
     sma_50,
@@ -37,7 +37,7 @@ select
     sector_turnover_share, -- Stock's importance within the sector today
     avg_value_per_trade, -- High values = Institutional activity
 
-    -- 6. Investor Signals (Refined)
+    -- 6. Investor Signals
     case 
         when last_price > sma_20 and volume_surge_ratio > 1.2 and alpha_vs_sector > 0 then 'STRONG_BUY'
         when last_price < sma_20 and volume_surge_ratio > 1.2 and alpha_vs_sector < 0 then 'STRONG_SELL'

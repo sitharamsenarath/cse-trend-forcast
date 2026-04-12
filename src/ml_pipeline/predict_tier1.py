@@ -24,26 +24,23 @@ spark = SparkSession.builder \
     .getOrCreate()
 
 # 2. Load the Preprocessing Pipeline and the Model
-# Pipeline handles VectorAssembler AND StandardScaler automatically
 preprocessor = PipelineModel.load("/app/models_registry/preprocessing_pipeline")
 model = GBTRegressionModel.load("/app/models_registry/tier1_gbt_model")
 
 # 3. Fetch Data from Postgres
-# Ensure the table name 'analytics.fct_investment_signals' matches your source data
 query = "(SELECT * FROM analytics.fct_investment_signals WHERE trade_date > '2026-04-07') as latest_data"
 new_data_df = spark.read.jdbc(url=DB_URL, table=query, properties=PROPS)
 
 # 4. Transform raw data into features (Assembles & Scales)
 data_with_features = preprocessor.transform(new_data_df)
 
-# 5. Predict!
+# 5. Predict
 predictions = model.transform(data_with_features)
 
 # 6. Show the results
-# We include stock_symbol and trade_date so the output actually makes sense
 predictions.select("stock_symbol", "trade_date", "prediction").show(10)
 
-# 7. Save results (Optional but recommended)
+# 7. Save results
 # predictions.select("stock_symbol", "trade_date", "prediction") \
 #     .write.mode("overwrite").parquet("/app/data/predictions/latest_signals")
 
